@@ -66,7 +66,7 @@ class Markdown extends \cebe\markdown\Markdown
 	 */
 	protected function renderQuote($block)
 	{
-		return '\begin{blockquote}' . $this->parseBlocks($block['content']) . '\end{blockquote}';
+		return '\begin{quote}' . $this->parseBlocks($block['content']) . '\end{quote}';
 	}
 
 	/**

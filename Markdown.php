@@ -304,4 +304,14 @@ class Markdown extends \cebe\markdown\Markdown
 		}
 		return $this->_escaper->convert($string);
 	}
+
+	/**
+	 * @inheritdocs
+	 *
+	 * Parses a newline indicated by two spaces on the end of a markdown line.
+	 */
+	protected function parsePlainText($text)
+	{
+		return str_replace("  \n", '\\\\', $this->escapeLatex($text));
+	}
 }

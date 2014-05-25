@@ -30,11 +30,6 @@ class GithubMarkdown extends Markdown
 			'ftp'   => 'parseUrl',
 			'~~'    => 'parseStrike',
 		];
-
-		if ($this->enableNewlines) {
-			$markers["\n"] = 'parseDirectNewline';
-		}
-
 		return array_merge(parent::inlineMarkers(), $markers);
 	}
 
@@ -120,13 +115,16 @@ REGEXP;
 	}
 
 	/**
-	 * Parses a newline indicated by a direct line break. This is only used when `enableNewlines` is true.
+	 * @inheritdocs
+	 *
+	 * Parses a newline indicated by two spaces on the end of a markdown line.
 	 */
-	protected function parseDirectNewline($markdown)
+	protected function parsePlainText($text)
 	{
-		return [
-			'\\\\',
-			1
-		];
+		if ($this->enableNewlines) {
+			return preg_replace("/(  \n|\n)/", '\\\\', $this->escapeLatex($text));
+		} else {
+			return parent::parsePlainText($text);
+		}
 	}
 }

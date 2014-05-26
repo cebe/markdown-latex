@@ -28,6 +28,7 @@ class Markdown extends \cebe\markdown\Markdown
 	 */
 	public $keepListStartNumber = false;
 
+
 	/**
 	 * @inheritDoc
 	 */
@@ -145,6 +146,17 @@ class Markdown extends \cebe\markdown\Markdown
 
 
 	/**
+	 * Parses escaped special characters.
+	 */
+	protected function parseEscape($text)
+	{
+		if (isset($text[1]) && in_array($text[1], $this->escapeCharacters)) {
+			return [$text[1], 2];
+		}
+		return ['\\textbackslash{}', 1];
+	}
+
+	/**
 	 * Parses a newline indicated by two spaces on the end of a markdown line.
 	 */
 	protected function parseNewline($text)
@@ -256,12 +268,12 @@ class Markdown extends \cebe\markdown\Markdown
 	{
 		if (preg_match('/^(``+)\s(.+?)\s\1/s', $text, $matches)) { // code with enclosed backtick
 			return [
-				'\\lstinline|' . $matches[2] . '|',
+				'\\lstinline|' . str_replace("\n", ' ', $matches[2]) . '|',
 				strlen($matches[0])
 			];
 		} elseif (preg_match('/^`(.+?)`/s', $text, $matches)) {
 			return [
-				'\\lstinline|' . $matches[1] . '|',
+				'\\lstinline|' . str_replace("\n", ' ', $matches[1]) . '|',
 				strlen($matches[0])
 			];
 		}
@@ -292,7 +304,7 @@ class Markdown extends \cebe\markdown\Markdown
 				return ['\textit{' . $this->parseInline($matches[1]) . '}', strlen($matches[0])];
 			}
 		}
-		return [$text[0], 1];
+		return [$text[0] == '_' ? '\\_' : $text[0], 1];
 	}
 
 	private $_escaper;

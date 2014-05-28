@@ -27,6 +27,11 @@ class Markdown extends \cebe\markdown\Markdown
 	 * @var boolean This option has no effect in LaTeX Markdown.
 	 */
 	public $keepListStartNumber = false;
+	/**
+	 * @var string this string will be prefixed to all auto generated labels.
+	 * This can be used to disambiguate labels when combining multiple markdown files into one document.
+	 */
+	public $labelPrefix;
 
 
 	/**
@@ -187,13 +192,16 @@ class Markdown extends \cebe\markdown\Markdown
 	 */
 	protected function parseLt($text)
 	{
-		// TODO obviously does not work with latex
 		if (strpos($text, '>') !== false) {
+			// convert a name markers to \labels
+			if (preg_match('~^<a name="(.*?)">.*?</a>~i', $text, $matches)) {
+				return ['\label{' . str_replace('#', '::', $this->labelPrefix . $matches[1]) . "}", strlen($matches[0])];
+			}
+			// email address
 			if (preg_match('/^<([^\s]*?@[^\s]*?\.\w+?)>/', $text, $matches)) {
-				// email address
 				$email = htmlspecialchars($matches[1], ENT_NOQUOTES, 'UTF-8');
 				return [
-					"<a href=\"mailto:$email\">$email</a>", // TODO encode mail with entities
+					'\href{mailto:' . $email . '}{' . $this->escapeLatex($email) . '}',
 					strlen($matches[0])
 				];
 			} elseif (preg_match('/^<([a-z]{3,}:\/\/[^\s]+?)>/', $text, $matches)) {
@@ -201,7 +209,7 @@ class Markdown extends \cebe\markdown\Markdown
 				return ['\url{' . $this->escapeLatex($matches[1]) . '}', strlen($matches[0])];
 			} elseif (preg_match('~^</?(\w+\d?)( .*?)?>~', $text, $matches)) {
 				// HTML tags
-				return [$matches[0], strlen($matches[0])];
+				return [$this->escapeLatex($matches[0]), strlen($matches[0])];
 			} elseif (preg_match('~^<!--(.*?)-->~', $text, $matches)) {
 				// HTML comments to LaTeX comments
 				return ['% ' . $matches[1] . "\n", strlen($matches[0])];
@@ -218,7 +226,16 @@ class Markdown extends \cebe\markdown\Markdown
 		if (($parts = $this->parseLinkOrImage($markdown)) !== false) {
 			list($text, $url, $title, $offset) = $parts;
 
-			$link = $this->parseInline($text) . '\\footnote{' . (empty($title) ? '' : $this->escapeLatex($title) . ': ') . '\url{' . $this->escapeLatex($url) . '}}';
+			if (strpos($url, '://') === false) {
+				// consider all non absolute links as relative in the document
+				// $title is ignored in this case.
+				if ($url[0] === '#') {
+					$url = $this->labelPrefix . $url;
+				}
+				$link = '\hyperref['.str_replace('#', '::', $url).']{' . $this->parseInline($text) . '}';
+			} else {
+				$link = $this->parseInline($text) . '\\footnote{' . (empty($title) ? '' : $this->escapeLatex($title) . ': ') . '\url{' . $this->escapeLatex($url) . '}}';
+			}
 
 			return [$link, $offset];
 		} else {

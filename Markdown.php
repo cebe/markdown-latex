@@ -206,7 +206,7 @@ class Markdown extends \cebe\markdown\Markdown
 				];
 			} elseif (preg_match('/^<([a-z]{3,}:\/\/[^\s]+?)>/', $text, $matches)) {
 				// URL
-				return ['\url{' . $this->escapeLatex($matches[1]) . '}', strlen($matches[0])];
+				return ['\url{' . $this->escapeUrl($matches[1]) . '}', strlen($matches[0])];
 			} elseif (preg_match('~^</?(\w+\d?)( .*?)?>~', $text, $matches)) {
 				// HTML tags
 				return [$this->escapeLatex($matches[0]), strlen($matches[0])];
@@ -234,7 +234,7 @@ class Markdown extends \cebe\markdown\Markdown
 				}
 				$link = '\hyperref['.str_replace('#', '::', $url).']{' . $this->parseInline($text) . '}';
 			} else {
-				$link = $this->parseInline($text) . '\\footnote{' . (empty($title) ? '' : $this->escapeLatex($title) . ': ') . '\url{' . $this->escapeLatex($url) . '}}';
+				$link = $this->parseInline($text) . '\\footnote{' . (empty($title) ? '' : $this->escapeLatex($title) . ': ') . '\url{' . $this->escapeUrl($url) . '}}';
 			}
 
 			return [$link, $offset];
@@ -325,6 +325,12 @@ class Markdown extends \cebe\markdown\Markdown
 	}
 
 	private $_escaper;
+
+
+	protected function escapeUrl($string)
+	{
+		return str_replace('%', '\\%', $this->escapeLatex($string));
+	}
 
 	protected function escapeLatex($string)
 	{

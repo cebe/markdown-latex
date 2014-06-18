@@ -34,7 +34,6 @@ class Markdown extends \cebe\markdown\Markdown
 	protected function inlineMarkers()
 	{
 		return [
-			"  \n"  => 'parseNewline',
 			'&'     => 'parseEntity',
 			'!['    => 'parseImage',
 			'*'     => 'parseEmphStrong',

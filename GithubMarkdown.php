@@ -6,6 +6,7 @@
  */
 
 namespace cebe\markdown\latex;
+use cebe\markdown\block\TableTrait;
 
 /**
  * Markdown parser for github flavored markdown.
@@ -14,6 +15,8 @@ namespace cebe\markdown\latex;
  */
 class GithubMarkdown extends Markdown
 {
+	use TableTrait;
+
 	/**
 	 * @var boolean whether to interpret newlines as `<br />`-tags.
 	 * This feature is useful for comments where newlines are often meant to be real new lines.
@@ -23,14 +26,37 @@ class GithubMarkdown extends Markdown
 	/**
 	 * @inheritDoc
 	 */
+	protected $escapeCharacters = [
+		// from Markdown
+		'\\', // backslash
+		'`', // backtick
+		'*', // asterisk
+		'_', // underscore
+		'{', '}', // curly braces
+		'[', ']', // square brackets
+		'(', ')', // parentheses
+		'#', // hash mark
+		'+', // plus sign
+		'-', // minus sign (hyphen)
+		'.', // dot
+		'!', // exclamation mark
+		'<', '>',
+		// added by GithubMarkdown
+		':', // colon
+		'|', // pipe
+	];
+
+	/**
+	 * @inheritDoc
+	 */
 	protected function inlineMarkers()
 	{
-		$markers = [
+		return parent::inlineMarkers() + [
 			'http'  => 'parseUrl',
 			'ftp'   => 'parseUrl',
 			'~~'    => 'parseStrike',
+			'|'     => 'parseTd',
 		];
-		return array_merge(parent::inlineMarkers(), $markers);
 	}
 
 
@@ -42,8 +68,11 @@ class GithubMarkdown extends Markdown
 	 */
 	protected function identifyLine($lines, $current)
 	{
-		if (isset($lines[$current]) && strncmp($lines[$current], '```', 3) === 0) {
+		if (isset($lines[$current]) && (strncmp($lines[$current], '```', 3) === 0 || strncmp($lines[$current], '~~~', 3) === 0)) {
 			return 'fencedCode';
+		}
+		if ($this->identifyTable($lines, $current)) {
+			return 'table';
 		}
 		return parent::identifyLine($lines, $current);
 	}
@@ -59,7 +88,7 @@ class GithubMarkdown extends Markdown
 			'content' => [],
 		];
 		$line = rtrim($lines[$current]);
-		$fence = substr($line, 0, $pos = strrpos($line, '`') + 1);
+		$fence = substr($line, 0, $pos = strrpos($line, $line[0]) + 1);
 		$language = substr($line, $pos);
 		if (!empty($language)) {
 			$block['language'] = $language;
@@ -105,7 +134,7 @@ class GithubMarkdown extends Markdown
 			)/x
 REGEXP;
 
-		if (preg_match($pattern, $markdown, $matches)) {
+		if (!in_array('parseLink', $this->context) && preg_match($pattern, $markdown, $matches)) {
 			return [
 				'\url{' . $matches[0] . '}',
 				strlen($matches[0])
@@ -122,9 +151,41 @@ REGEXP;
 	protected function parsePlainText($text)
 	{
 		if ($this->enableNewlines) {
-			return preg_replace("/(  \n|\n)/", '\\\\', $this->escapeLatex($text));
+			return preg_replace("/(  \n|\n)/", '\\\\\\\\', $this->escapeLatex($text));
 		} else {
 			return parent::parsePlainText($text);
 		}
+	}
+
+	private $_tableCellHead = false;
+
+	protected function renderTable($block)
+	{
+		$align = [];
+		foreach($block['cols'] as $col) {
+			if (empty($col)) {
+				$align[] = 'l';
+			} else {
+				$align[] = $col[0];
+			}
+		}
+		$align = implode('|', $align);
+
+		$content = '';
+		$first = true;
+		foreach($block['rows'] as $row) {
+			$this->_tableCellHead = $first;
+			$content .= $this->parseInline($row) . "\\\\ \\hline\n";
+			$first = false;
+		}
+		return "\\begin{tabular}{|$align|}\\hline\n$content\\end{tabular}";
+	}
+
+	protected function parseTd($markdown)
+	{
+		if ($this->context[1] === 'table') {
+			return ["&", 1];
+		}
+		return [$markdown[0], 1];
 	}
 }

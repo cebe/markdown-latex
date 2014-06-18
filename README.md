@@ -1,6 +1,15 @@
 markdown-latex
 ==============
 
+[![Latest Stable Version](https://poser.pugx.org/cebe/markdown-latex/v/stable.png)](https://packagist.org/packages/cebe/markdown-latex)
+[![Total Downloads](https://poser.pugx.org/cebe/markdown-latex/downloads.png)](https://packagist.org/packages/cebe/markdown-latex)
+[![Build Status](https://travis-ci.org/cebe/markdown-latex.svg?branch=master)](https://travis-ci.org/cebe/markdown-latex)
+[![Tested against HHVM](http://hhvm.h4cc.de/badge/cebe/markdown-latex.png)](http://hhvm.h4cc.de/package/cebe/markdown-latex)
+[![Code Coverage](https://scrutinizer-ci.com/g/cebe/markdown-latex/badges/coverage.png?s=db6af342d55bea649307ef311fbd536abb9bab76)](https://scrutinizer-ci.com/g/cebe/markdown-latex/)
+[![Scrutinizer Quality Score](https://scrutinizer-ci.com/g/cebe/markdown-latex/badges/quality-score.png?s=17448ca4d140429fd687c58ff747baeb6568d528)](https://scrutinizer-ci.com/g/cebe/markdown-latex/) -->
+
+
+
 A markdown parser for converting markdown to LaTeX written in PHP.
 
 Implementation based on [cebe/markdown][].

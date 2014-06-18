@@ -178,7 +178,7 @@ REGEXP;
 			$content .= $this->parseInline($row) . "\\\\ \\hline\n";
 			$first = false;
 		}
-		return "\\begin{tabular}{|$align|}\\hline\n$content\\end{tabular}";
+		return "\n\n\\noindent\\begin{tabular}{|$align|}\\hline\n$content\\end{tabular}\n";
 	}
 
 	protected function parseTd($markdown)

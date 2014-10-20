@@ -33,10 +33,10 @@ class GithubMarkdownTest extends BaseMarkdownLatexTest
 	public function testNewlines()
 	{
 		$markdown = $this->createMarkdown();
-		$this->assertEquals("This is text\\\\newline\nnewline.", $markdown->parseParagraph("This is text  \nnewline\nnewline."));
+		$this->assertEquals("This is text\\\\\nnewline\nnewline.", $markdown->parseParagraph("This is text  \nnewline\nnewline."));
 		$markdown->enableNewlines = true;
-		$this->assertEquals("This is text\\\\newline\\\\newline.", $markdown->parseParagraph("This is text  \nnewline\nnewline."));
+		$this->assertEquals("This is text\\\\\nnewline\\\\\nnewline.", $markdown->parseParagraph("This is text  \nnewline\nnewline."));
 
-		$this->assertEquals("This is text\n\nnewline\\\\newline.\n\n", $markdown->parse("This is text\n\nnewline\nnewline."));
+		$this->assertEquals("This is text\n\nnewline\\\\\nnewline.\n\n", $markdown->parse("This is text\n\nnewline\nnewline."));
 	}
 }

@@ -16,4 +16,11 @@ use cebe\markdown\tests\BaseMarkdownTest;
 abstract class BaseMarkdownLatexTest extends BaseMarkdownTest
 {
 	protected $outputFileExtension = '.tex';
+
+	public function testInvalidUtf8()
+	{
+//   		$m = $this->createMarkdown();
+//   		$this->assertEquals('\\lstinline|�|', $m->parseParagraph("`\x80`"));
+	}
+
 }

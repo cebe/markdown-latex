@@ -7,10 +7,7 @@
 
 namespace cebe\markdown\latex;
 
-// work around https://github.com/facebook/hhvm/issues/1120
 use MikeVanRiel\TextToLatex;
-
-defined('ENT_HTML401') || define('ENT_HTML401', 0);
 
 /**
  * Markdown parser for the [initial markdown spec](http://daringfireball.net/projects/markdown/syntax).
@@ -31,28 +28,7 @@ class Markdown extends \cebe\markdown\Markdown
 	 * @var string this string will be prefixed to all auto generated labels.
 	 * This can be used to disambiguate labels when combining multiple markdown files into one document.
 	 */
-	public $labelPrefix;
-
-
-	/**
-	 * @inheritDoc
-	 */
-	protected function inlineMarkers()
-	{
-		return [
-			'&'     => 'parseEntity',
-			'!['    => 'parseImage',
-			'*'     => 'parseEmphStrong',
-			'_'     => 'parseEmphStrong',
-			'<'     => 'parseLt',
-			'['     => 'parseLink',
-			'\\'    => 'parseEscape',
-			'`'     => 'parseCode',
-		];
-	}
-
-
-	// rendering
+	public $labelPrefix = '';
 
 
 	/**
@@ -63,7 +39,7 @@ class Markdown extends \cebe\markdown\Markdown
 	 */
 	protected function renderParagraph($block)
 	{
-		return $this->parseInline(implode("\n", $block['content'])) . "\n";
+		return $this->renderAbsy($block['content']) . "\n\n";
 	}
 
 	/**
@@ -71,7 +47,7 @@ class Markdown extends \cebe\markdown\Markdown
 	 */
 	protected function renderQuote($block)
 	{
-		return '\begin{quote}' . $this->parseBlocks($block['content']) . '\end{quote}';
+		return '\begin{quote}' . $this->renderAbsy($block['content']) . "\\end{quote}\n";
 	}
 
 	/**
@@ -79,8 +55,8 @@ class Markdown extends \cebe\markdown\Markdown
 	 */
 	protected function renderCode($block)
 	{
-		$language = isset($block['language']) ? ' \lstset{language=' . $block['language'] . '} ' : '\lstset{language={}}';
-		return $language . '\begin{lstlisting}' . "\n" . implode("\n", $block['content']) . "\n" . '\end{lstlisting}';
+		$language = isset($block['language']) ? "\\lstset{language={$block['language']}}" : '\lstset{language={}}';
+		return "$language\\begin{lstlisting}\n{$block['content']}\n\\end{lstlisting}\n";
 	}
 
 	/**
@@ -88,30 +64,14 @@ class Markdown extends \cebe\markdown\Markdown
 	 */
 	protected function renderList($block)
 	{
-		$type = $block['list'];
-		if ($type === 'ol') {
-			$type = 'enumerate';
-		} else {
-			$type = 'itemize';
+		$type = ($block['list'] === 'ol') ? 'enumerate' : 'itemize';
+		$output = "\\begin{{$type}}\n";
+
+		foreach ($block['items'] as $item => $itemLines) {
+			$output .= '\item ' . $this->renderAbsy($itemLines). "\n";
 		}
 
-		$output = '\begin{' . $type . '}' . "\n";
-		foreach ($block['items'] as $item => $itemLines) {
-			$output .= '\item ';
-			// TODO treat lazy lists correctly
-			if (!isset($block['lazyItems'][$item])) {
-				$firstPar = [];
-				while (!empty($itemLines) && rtrim($itemLines[0]) !== '' && $this->identifyLine($itemLines, 0) === 'paragraph') {
-					$firstPar[] = array_shift($itemLines);
-				}
-				$output .= $this->parseInline(implode("\n", $firstPar));
-			}
-			if (!empty($itemLines)) {
-				$output .= $this->parseBlocks($itemLines);
-			}
-			$output .= "\n";
-		}
-		return $output . '\end{' . $type . '}';
+		return "$output\\end{{$type}}\n";
 	}
 
 	/**
@@ -119,12 +79,12 @@ class Markdown extends \cebe\markdown\Markdown
 	 */
 	protected function renderHeadline($block)
 	{
-		$content = $this->parseInline($block['content']);
+		$content = $this->renderAbsy($block['content']);
 		switch($block['level']) {
-			case 1: return '\section{' . $content . '}';
-			case 2: return '\subsection{' . $content . '}';
-			case 3: return '\subsubsection{' . $content . '}';
-			default: return '\paragraph{' . $content . '}';
+			case 1: return "\\section{{$content}}\n";
+			case 2: return "\\subsection{{$content}}\n";
+			case 3: return "\\subsubsection{{$content}}\n";
+			default: return "\\paragraph{{$content}}\n";
 		}
 	}
 
@@ -134,7 +94,7 @@ class Markdown extends \cebe\markdown\Markdown
 	protected function renderHtml($block)
 	{
 		// TODO obviously does not work with latex
-		return '\fbox{NOT PARSEABLE HTML BLOCK}'; // implode("\n", $block['content']);
+		return "\\fbox{NOT PARSEABLE HTML BLOCK}\n"; // implode("\n", $block['content']);
 	}
 
 	/**
@@ -150,181 +110,75 @@ class Markdown extends \cebe\markdown\Markdown
 
 
 	/**
-	 * Parses escaped special characters.
+	 * @inheritdoc
 	 */
-	protected function parseEscape($text)
+	protected function renderLink($markdown)
 	{
-		if (isset($text[1]) && in_array($text[1], $this->escapeCharacters)) {
-			return [$text[1], 2];
-		}
-		return ['\\textbackslash{}', 1];
-	}
-
-	/**
-	 * Parses a newline indicated by two spaces on the end of a markdown line.
-	 */
-	protected function parseNewline($text)
-	{
-		return [
-			'\\\\',
-			3
-		];
-	}
-
-	/**
-	 * Parses an & or a html entity definition.
-	 */
-	protected function parseEntity($text)
-	{
-		// TODO obviously does not work with latex
-
-		// html entities e.g. &copy; &#169; &#x00A9;
-		if (preg_match('/^&#?[\w\d]+;/', $text, $matches)) {
-			return [str_replace('#', '\\#', '\\' . $matches[0]), strlen($matches[0])];
-		} else {
-			return ['\&', 1];
-		}
-	}
-
-	/**
-	 * Parses inline HTML.
-	 */
-	protected function parseLt($text)
-	{
-		if (strpos($text, '>') !== false) {
-			// convert a name markers to \labels
-			if (preg_match('~^<a name="(.*?)">.*?</a>~i', $text, $matches)) {
-				return ['\label{' . str_replace('#', '::', $this->labelPrefix . $matches[1]) . "}", strlen($matches[0])];
-			}
-			// email address
-			if (preg_match('/^<([^\s]*?@[^\s]*?\.\w+?)>/', $text, $matches)) {
-				$email = htmlspecialchars($matches[1], ENT_NOQUOTES, 'UTF-8');
-				return [
-					'\href{mailto:' . $email . '}{' . $this->escapeLatex($email) . '}',
-					strlen($matches[0])
-				];
-			} elseif (preg_match('/^<([a-z]{3,}:\/\/[^\s]+?)>/', $text, $matches)) {
-				// URL
-				return ['\url{' . $this->escapeUrl($matches[1]) . '}', strlen($matches[0])];
-			} elseif (preg_match('~^</?(\w+\d?)( .*?)?>~', $text, $matches)) {
-				// HTML tags
-				return [$this->escapeLatex($matches[0]), strlen($matches[0])];
-			} elseif (preg_match('~^<!--(.*?)-->~', $text, $matches)) {
-				// HTML comments to LaTeX comments
-				return ['% ' . $matches[1] . "\n", strlen($matches[0])];
-			}
-		}
-		return ['<', 1];
-	}
-
-	/**
-	 * Parses a link indicated by `[`.
-	 */
-	protected function parseLink($markdown)
-	{
-		if (($parts = $this->parseLinkOrImage($markdown)) !== false) {
-			list($text, $url, $title, $offset) = $parts;
-
-			if (strpos($url, '://') === false) {
-				// consider all non absolute links as relative in the document
-				// $title is ignored in this case.
-				if ($url[0] === '#') {
-					$url = $this->labelPrefix . $url;
-				}
-				$link = '\hyperref['.str_replace('#', '::', $url).']{' . $this->parseInline($text) . '}';
+		if (isset($block['refkey'])) {
+			if (($ref = $this->lookupReference($block['refkey'])) !== false) {
+				$block = array_merge($block, $ref);
 			} else {
-				$link = $this->parseInline($text) . '\\footnote{' . (empty($title) ? '' : $this->escapeLatex($title) . ': ') . '\url{' . $this->escapeUrl($url) . '}}';
+				return $block['orig'];
 			}
+		}
 
-			return [$link, $offset];
+		$url = $block['url'];
+		$text = $this->renderAbsy($block['text']);
+		if (strpos($url, '://') === false) {
+			// consider all non absolute links as relative in the document
+			// $title is ignored in this case.
+			if ($url[0] === '#') {
+				$url = $this->labelPrefix . $url;
+			}
+			return '\hyperref['.str_replace('#', '::', $url).']{' . $text . '}';
 		} else {
-			// remove all starting [ markers to avoid next one to be parsed as link
-			$result = '[';
-			$i = 1;
-			while (isset($markdown[$i]) && $markdown[$i] == '[') {
-				$result .= '[';
-				$i++;
-			}
-			return [$result, $i];
+			return $text . '\\footnote{' . (empty($block['title']) ? '' : $this->escapeLatex($block['title']) . ': ') . '\url{' . $this->escapeUrl($url) . '}}';
 		}
 	}
 
 	/**
-	 * Parses an image indicated by `![`.
+	 * @inheritdoc
 	 */
-	protected function parseImage($markdown)
+	protected function renderImage($block)
 	{
-		if (($parts = $this->parseLinkOrImage(substr($markdown, 1))) !== false) {
-			list($text, $url, $title, $offset) = $parts;
-
-			// TODO create figure with caption with title
-			$image = '\includegraphics[width=\textwidth]{' . $url . '}';
-//			$image = '<img src="' . htmlspecialchars($url, ENT_COMPAT | ENT_HTML401, 'UTF-8') . '"'
-//				. ' alt="' . htmlspecialchars($text, ENT_COMPAT | ENT_HTML401, 'UTF-8') . '"'
-//				. (empty($title) ? '' : ' title="' . htmlspecialchars($title, ENT_COMPAT | ENT_HTML401, 'UTF-8') . '"')
-//				. ($this->html5 ? '>' : ' />');
-
-			return [$image, $offset + 1];
-		} else {
-			// remove all starting [ markers to avoid next one to be parsed as link
-			$result = '!';
-			$i = 1;
-			while (isset($markdown[$i]) && $markdown[$i] == '[') {
-				$result .= '[';
-				$i++;
+		if (isset($block['refkey'])) {
+			if (($ref = $this->lookupReference($block['refkey'])) !== false) {
+				$block = array_merge($block, $ref);
+			} else {
+				return $block['orig'];
 			}
-			return [$result, $i];
 		}
+
+		// TODO create figure with caption with title
+		$url = $block['url'];
+		return '\includegraphics[width=\textwidth]{' . $this->escapeUrl($url) . '}';
 	}
 
 	/**
-	 * Parses an inline code span `` ` ``.
+	 * @inheritdoc
 	 */
-	protected function parseCode($text)
+	protected function renderInlineCode($block)
 	{
-		if (preg_match('/^(``+)\s(.+?)\s\1/s', $text, $matches)) { // code with enclosed backtick
-			return [
-				'\\lstinline|' . str_replace("\n", ' ', $matches[2]) . '|',
-				strlen($matches[0])
-			];
-		} elseif (preg_match('/^`(.+?)`/s', $text, $matches)) {
-			return [
-				'\\lstinline|' . str_replace("\n", ' ', $matches[1]) . '|',
-				strlen($matches[0])
-			];
-		}
-		return [$text[0], 1];
+		return '\\lstinline|' . str_replace("\n", ' ', $block[1]) . '|';
 	}
 
 	/**
-	 * Parses empathized and strong elements.
+	 * @inheritdoc
 	 */
-	protected function parseEmphStrong($text)
+	protected function renderStrong($block)
 	{
-		// TODO check http://tex.stackexchange.com/questions/41681/correct-way-to-bold-italicize-text
-		$marker = $text[0];
+		return '\textbf{' . $this->renderAbsy($block[1]) . '}';
+	}
 
-		if (!isset($text[1])) {
-			return [$text[0], 1];
-		}
-
-		if ($marker == $text[1]) { // strong
-			if ($marker == '*' && preg_match('/^[*]{2}((?:[^*]|[*][^*]*[*])+?)[*]{2}(?![*])/s', $text, $matches) ||
-				$marker == '_' && preg_match('/^__((?:[^_]|_[^_]*_)+?)__(?!_)/us', $text, $matches)) {
-
-				return ['\textbf{' . $this->parseInline($matches[1]) . '}', strlen($matches[0])];
-			}
-		} else { // emph
-			if ($marker == '*' && preg_match('/^[*]((?:[^*]|[*][*][^*]+?[*][*])+?)[*](?![*])/s', $text, $matches) ||
-				$marker == '_' && preg_match('/^_((?:[^_]|__[^_]*__)+?)_(?!_)\b/us', $text, $matches)) {
-				return ['\textit{' . $this->parseInline($matches[1]) . '}', strlen($matches[0])];
-			}
-		}
-		return [$text[0] == '_' ? '\\_' : $text[0], 1];
+	/**
+	 * @inheritdoc
+	 */
+	protected function renderEmph($block)
+	{
+		return '\textit{' . $this->renderAbsy($block[1]) . '}';
 	}
 
 	private $_escaper;
-
 
 	protected function escapeUrl($string)
 	{
@@ -344,8 +198,8 @@ class Markdown extends \cebe\markdown\Markdown
 	 *
 	 * Parses a newline indicated by two spaces on the end of a markdown line.
 	 */
-	protected function parsePlainText($text)
+	protected function renderText($text)
 	{
-		return str_replace("  \n", '\\\\', $this->escapeLatex($text));
+		return str_replace("  \n", "\\\\\n", $this->escapeLatex($text[1]));
 	}
 }

@@ -6,7 +6,11 @@
  */
 
 namespace cebe\markdown\latex;
+
+use cebe\markdown\block\FencedCodeTrait;
 use cebe\markdown\block\TableTrait;
+use cebe\markdown\inline\StrikeoutTrait;
+use cebe\markdown\inline\UrlLinkTrait;
 
 /**
  * Markdown parser for github flavored markdown.
@@ -15,7 +19,13 @@ use cebe\markdown\block\TableTrait;
  */
 class GithubMarkdown extends Markdown
 {
+	// include block element parsing using traits
 	use TableTrait;
+	use FencedCodeTrait;
+
+	// include inline element parsing using traits
+	use StrikeoutTrait;
+	use UrlLinkTrait;
 
 	/**
 	 * @var boolean whether to interpret newlines as `<br />`-tags.
@@ -47,100 +57,19 @@ class GithubMarkdown extends Markdown
 	];
 
 	/**
-	 * @inheritDoc
+	 * @inheritdoc
 	 */
-	protected function inlineMarkers()
+	protected function renderAutoUrl($block)
 	{
-		return parent::inlineMarkers() + [
-			'http'  => 'parseUrl',
-			'ftp'   => 'parseUrl',
-			'~~'    => 'parseStrike',
-			'|'     => 'parseTd',
-		];
-	}
-
-
-	// block parsing
-
-
-	/**
-	 * @inheritDoc
-	 */
-	protected function identifyLine($lines, $current)
-	{
-		if (isset($lines[$current]) && (strncmp($lines[$current], '```', 3) === 0 || strncmp($lines[$current], '~~~', 3) === 0)) {
-			return 'fencedCode';
-		}
-		if ($this->identifyTable($lines, $current)) {
-			return 'table';
-		}
-		return parent::identifyLine($lines, $current);
+		return '\url{' . $this->escapeUrl($block[1]) . '}';
 	}
 
 	/**
-	 * Consume lines for a fenced code block
+	 * @inheritdoc
 	 */
-	protected function consumeFencedCode($lines, $current)
+	protected function renderStrike($block)
 	{
-		// consume until ```
-		$block = [
-			'type' => 'code',
-			'content' => [],
-		];
-		$line = rtrim($lines[$current]);
-		$fence = substr($line, 0, $pos = strrpos($line, $line[0]) + 1);
-		$language = substr($line, $pos);
-		if (!empty($language)) {
-			$block['language'] = $language;
-		}
-		for ($i = $current + 1, $count = count($lines); $i < $count; $i++) {
-			if (rtrim($line = $lines[$i]) !== $fence) {
-				$block['content'][] = $line;
-			} else {
-				break;
-			}
-		}
-		return [$block, $i];
-	}
-
-
-	// inline parsing
-
-
-	/**
-	 * Parses the strikethrough feature.
-	 */
-	protected function parseStrike($markdown)
-	{
-		if (preg_match('/^~~(.+?)~~/', $markdown, $matches)) {
-			return [
-				'\sout{' . $this->parseInline($matches[1]) . '}',
-				strlen($matches[0])
-			];
-		}
-		return [$markdown[0] . $markdown[1], 2];
-	}
-
-	/**
-	 * Parses urls and adds auto linking feature.
-	 */
-	protected function parseUrl($markdown)
-	{
-		$pattern = <<<REGEXP
-			/(?(R) # in case of recursion match parentheses
-				 \(((?>[^\s()]+)|(?R))*\)
-			|      # else match a link with title
-				^(https?|ftp):\/\/(([^\s()]+)|(?R))+(?<![\.,:;\'"!\?\s])
-			)/x
-REGEXP;
-
-		if (!in_array('parseLink', $this->context) && preg_match($pattern, $markdown, $matches)) {
-			return [
-				'\url{' . $matches[0] . '}',
-				strlen($matches[0])
-			];
-		}
-		return [substr($markdown, 0, 4), 4];
+		return '\sout{' . $this->renderAbsy($block[1]) . '}';
 	}
 
 	/**
@@ -148,12 +77,12 @@ REGEXP;
 	 *
 	 * Parses a newline indicated by two spaces on the end of a markdown line.
 	 */
-	protected function parsePlainText($text)
+	protected function renderText($text)
 	{
 		if ($this->enableNewlines) {
-			return preg_replace("/(  \n|\n)/", '\\\\\\\\', $this->escapeLatex($text));
+			return preg_replace("/(  \n|\n)/", "\\\\\\\\\n", $this->escapeLatex($text[1]));
 		} else {
-			return parent::parsePlainText($text);
+			return parent::renderText($text);
 		}
 	}
 
@@ -175,17 +104,25 @@ REGEXP;
 		$first = true;
 		foreach($block['rows'] as $row) {
 			$this->_tableCellHead = $first;
-			$content .= $this->parseInline($row) . "\\\\ \\hline\n";
+			$content .= $this->renderAbsy($this->parseInline($row)) . "\\\\ \\hline\n"; // TODO move this to the consume step
 			$first = false;
 		}
-		return "\n\n\\noindent\\begin{tabular}{|$align|}\\hline\n$content\\end{tabular}\n";
+		return "\n\\noindent\\begin{tabular}{|$align|}\\hline\n$content\\end{tabular}\n";
 	}
 
+	/**
+	 * @marker |
+	 */
 	protected function parseTd($markdown)
 	{
-		if ($this->context[1] === 'table') {
-			return ["&", 1];
+		if (isset($this->context[1]) && $this->context[1] === 'table') {
+			return [['tableSep'], 1];
 		}
-		return [$markdown[0], 1];
+		return [['text', $markdown[0]], 1];
+	}
+
+	protected function renderTableSep($block)
+	{
+		return '&';
 	}
 }

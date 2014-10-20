@@ -56,6 +56,16 @@ class GithubMarkdown extends Markdown
 		'|', // pipe
 	];
 
+
+	/**
+	 * @inheritdoc
+	 */
+	protected function renderCode($block)
+	{
+		// make sure this is not replaced by the trait
+		return parent::renderCode($block);
+	}
+
 	/**
 	 * @inheritdoc
 	 */

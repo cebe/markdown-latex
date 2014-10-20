@@ -7,6 +7,16 @@
 
 namespace cebe\markdown\latex;
 
+use cebe\markdown\block\CodeTrait;
+use cebe\markdown\block\HeadlineTrait;
+use cebe\markdown\block\ListTrait;
+use cebe\markdown\block\QuoteTrait;
+use cebe\markdown\block\RuleTrait;
+
+use cebe\markdown\inline\CodeTrait as InlineCodeTrait;
+use cebe\markdown\inline\EmphStrongTrait;
+use cebe\markdown\inline\LinkTrait;
+
 use MikeVanRiel\TextToLatex;
 
 /**
@@ -14,28 +24,98 @@ use MikeVanRiel\TextToLatex;
  *
  * @author Carsten Brandt <mail@cebe.cc>
  */
-class Markdown extends \cebe\markdown\Markdown
+class Markdown extends \cebe\markdown\Parser
 {
-	/**
-	 * @var boolean This option has no effect in LaTeX Markdown.
-	 */
-	public $html5 = false;
-	/**
-	 * @var boolean This option has no effect in LaTeX Markdown.
-	 */
-	public $keepListStartNumber = false;
+	// include block element parsing using traits
+	use CodeTrait;
+	use HeadlineTrait;
+	use ListTrait {
+		// Check Ul List before headline
+		identifyUl as protected identifyBUl;
+		consumeUl as protected consumeBUl;
+	}
+	use QuoteTrait;
+	use RuleTrait {
+		// Check Hr before checking lists
+		identifyHr as protected identifyAHr;
+		consumeHr as protected consumeAHr;
+	}
+
+	// include inline element parsing using traits
+	use InlineCodeTrait;
+	use EmphStrongTrait;
+	use LinkTrait;
+
 	/**
 	 * @var string this string will be prefixed to all auto generated labels.
 	 * This can be used to disambiguate labels when combining multiple markdown files into one document.
 	 */
 	public $labelPrefix = '';
 
+	/**
+	 * @var array these are "escapeable" characters. When using one of these prefixed with a
+	 * backslash, the character will be outputted without the backslash and is not interpreted
+	 * as markdown.
+	 */
+	protected $escapeCharacters = [
+		'\\', // backslash
+		'`', // backtick
+		'*', // asterisk
+		'_', // underscore
+		'{', '}', // curly braces
+		'[', ']', // square brackets
+		'(', ')', // parentheses
+		'#', // hash mark
+		'+', // plus sign
+		'-', // minus sign (hyphen)
+		'.', // dot
+		'!', // exclamation mark
+		'<', '>',
+	];
+
 
 	/**
-	 * Render a paragraph block
+	 * @inheritDoc
+	 */
+	protected function prepare()
+	{
+		// reset references
+		$this->references = [];
+	}
+
+	/**
+	 * Consume lines for a paragraph
 	 *
-	 * @param $block
-	 * @return string
+	 * Allow headlines and code to break paragraphs
+	 */
+	protected function consumeParagraph($lines, $current)
+	{
+		// consume until newline
+		$content = [];
+		for ($i = $current, $count = count($lines); $i < $count; $i++) {
+			$line = $lines[$i];
+			if (!empty($line) && ltrim($line) !== '' &&
+				!($line[0] === "\t" || $line[0] === " " && strncmp($line, '    ', 4) === 0) &&
+				!$this->identifyHeadline($line, $lines, $i))
+			{
+				$content[] = $line;
+			} else {
+				break;
+			}
+		}
+		$block = [
+			'paragraph',
+			'content' => $this->parseInline(implode("\n", $content)),
+		];
+		return [$block, --$i];
+	}
+
+
+	// rendering adjusted for LaTeX output
+
+
+	/**
+	 * @inheritdoc
 	 */
 	protected function renderParagraph($block)
 	{
@@ -43,7 +123,7 @@ class Markdown extends \cebe\markdown\Markdown
 	}
 
 	/**
-	 * Renders a blockquote
+	 * @inheritdoc
 	 */
 	protected function renderQuote($block)
 	{
@@ -51,7 +131,7 @@ class Markdown extends \cebe\markdown\Markdown
 	}
 
 	/**
-	 * Renders a code block
+	 * @inheritdoc
 	 */
 	protected function renderCode($block)
 	{
@@ -60,7 +140,7 @@ class Markdown extends \cebe\markdown\Markdown
 	}
 
 	/**
-	 * Renders a list
+	 * @inheritdoc
 	 */
 	protected function renderList($block)
 	{
@@ -75,7 +155,7 @@ class Markdown extends \cebe\markdown\Markdown
 	}
 
 	/**
-	 * Renders a headline
+	 * @inheritdoc
 	 */
 	protected function renderHeadline($block)
 	{
@@ -89,30 +169,17 @@ class Markdown extends \cebe\markdown\Markdown
 	}
 
 	/**
-	 * Renders an HTML block
-	 */
-	protected function renderHtml($block)
-	{
-		// TODO obviously does not work with latex
-		return "\\fbox{NOT PARSEABLE HTML BLOCK}\n"; // implode("\n", $block['content']);
-	}
-
-	/**
-	 * Renders a horizontal rule
+	 * @inheritdoc
 	 */
 	protected function renderHr($block)
 	{
 		return "\n\\noindent\\rule{\\textwidth}{0.4pt}\n";
 	}
 
-
-	// inline parsing
-
-
 	/**
 	 * @inheritdoc
 	 */
-	protected function renderLink($markdown)
+	protected function renderLink($block)
 	{
 		if (isset($block['refkey'])) {
 			if (($ref = $this->lookupReference($block['refkey'])) !== false) {
@@ -127,7 +194,7 @@ class Markdown extends \cebe\markdown\Markdown
 		if (strpos($url, '://') === false) {
 			// consider all non absolute links as relative in the document
 			// $title is ignored in this case.
-			if ($url[0] === '#') {
+			if (isset($url[0]) && $url[0] === '#') {
 				$url = $this->labelPrefix . $url;
 			}
 			return '\hyperref['.str_replace('#', '::', $url).']{' . $text . '}';
@@ -155,11 +222,57 @@ class Markdown extends \cebe\markdown\Markdown
 	}
 
 	/**
+	 * Parses <a name="..."></a> tags as reference labels
+	 */
+	private function parseInlineHtml($text)
+	{
+		if (strpos($text, '>') !== false) {
+			// convert a name markers to \labels
+			if (preg_match('~^<a name="(.*?)">.*?</a>~i', $text, $matches)) {
+				return [
+					['label', 'name' => str_replace('#', '::', $this->labelPrefix . $matches[1])],
+					strlen($matches[0])
+				];
+			}
+		}
+		return [['text', '<'], 1];
+	}
+
+	/**
+	 * renders a reference label
+	 */
+	protected function renderLabel($block)
+	{
+		return "\\label{{$block['name']}}";
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	protected function renderEmail($block)
+	{
+		$email = $this->escapeUrl($block[1]);
+		return "\\href{mailto:{$email}}{{$email}}";
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	protected function renderUrl($block)
+	{
+		return '\url{' . $this->escapeUrl($block[1]) . '}';
+	}
+
+	/**
 	 * @inheritdoc
 	 */
 	protected function renderInlineCode($block)
 	{
-		return '\\lstinline|' . str_replace("\n", ' ', $block[1]) . '|';
+		if (strpos($block[1], '|') !== false) {
+			return '\\lstinline`' . str_replace("\n", ' ', $block[1]) . '`'; // TODO make this more robust against code containing backticks
+		} else {
+			return '\\lstinline|' . str_replace("\n", ' ', $block[1]) . '|';
+		}
 	}
 
 	/**
@@ -180,11 +293,17 @@ class Markdown extends \cebe\markdown\Markdown
 
 	private $_escaper;
 
+	/**
+	 * Escape special characters in URLs
+	 */
 	protected function escapeUrl($string)
 	{
 		return str_replace('%', '\\%', $this->escapeLatex($string));
 	}
 
+	/**
+	 * Escape special LaTeX characters
+	 */
 	protected function escapeLatex($string)
 	{
 		if ($this->_escaper === null) {

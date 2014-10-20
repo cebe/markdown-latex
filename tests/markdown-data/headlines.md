@@ -11,3 +11,6 @@ Dolor!
 ### Head 3
 
 drei!
+
+Head with ref <a name="refname"></a>
+====================================

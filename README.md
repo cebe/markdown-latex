@@ -89,6 +89,9 @@ To create a latex document you have to include the generated latex source in a l
 % include images
 \usepackage{graphicx}
 
+% better tables using tabularx
+\usepackage{tabularx}
+
 % support github markdown strikethrough
 % http://tex.stackexchange.com/questions/23711/strikethrough-text
 \usepackage{ulem}

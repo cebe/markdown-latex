@@ -291,6 +291,27 @@ class Markdown extends \cebe\markdown\Parser
 		return '\textit{' . $this->renderAbsy($block[1]) . '}';
 	}
 
+	/**
+	 * Parses escaped special characters.
+	 * This allow a backslash to be interpreted as LaTeX
+	 * @marker \
+	 */
+	protected function parseEscape($text)
+	{
+		if (isset($text[1]) && in_array($text[1], $this->escapeCharacters)) {
+			if ($text[1] === '\\') {
+				return [['backslash'], 2];
+			}
+			return [['text', $text[1]], 2];
+		}
+		return [['text', $text[0]], 1];
+	}
+
+	protected function renderBackslash()
+	{
+		return '\\';
+	}
+
 	private $_escaper;
 
 	/**

@@ -228,9 +228,9 @@ class Markdown extends \cebe\markdown\Parser
 	{
 		if (strpos($text, '>') !== false) {
 			// convert a name markers to \labels
-			if (preg_match('~^<a name="(.*?)">.*?</a>~i', $text, $matches)) {
+			if (preg_match('~^<((a|span)) (name|id)="(.*?)">.*?</\1>~i', $text, $matches)) {
 				return [
-					['label', 'name' => str_replace('#', '::', $this->labelPrefix . $matches[1])],
+					['label', 'name' => str_replace('#', '::', $this->labelPrefix . $matches[2])],
 					strlen($matches[0])
 				];
 			}

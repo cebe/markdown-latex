@@ -160,7 +160,7 @@ class GithubMarkdown extends Markdown
 			$content .= "\\\\ \\hline\n";
 			$first = false;
 		}
-		return "\n\\noindent\\begin{tabularx}{\\textwidth}{|$align|}\\hline\n$content\\end{tabularx}\n";
+		return "\n\\noindent\\begin{tabularx}{\\textwidth}{|$align|}\\hline\n$content\\end{tabularx}\n\n";
 	}
 
 	/**

@@ -341,8 +341,12 @@ class Markdown extends \cebe\markdown\Parser
 	protected function renderText($text)
 	{
 		$output = str_replace("  \n", "\\\\\n", $this->escapeLatex($text[1]));
-		// support non breaking spaces in LaTeX
+		// support No-Break Space in LaTeX
 		$output = preg_replace("/\x{00a0}/u", '~', $output);
+		// support Narrow No-Break Space spaces in LaTeX
+		// http://unicode-table.com/en/202F/
+		// http://tex.stackexchange.com/questions/76132/how-to-typeset-a-small-non-breaking-space
+		$output = preg_replace("/\x{202f}/u", '\nobreak\hspace{.16667em plus .08333em}', $output);
 		return $output;
 	}
 }

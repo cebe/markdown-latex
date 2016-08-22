@@ -230,7 +230,7 @@ class Markdown extends \cebe\markdown\Parser
 			// convert a name markers to \labels
 			if (preg_match('~^<((a|span)) (name|id)="(.*?)">.*?</\1>~i', $text, $matches)) {
 				return [
-					['label', 'name' => str_replace('#', '::', $this->labelPrefix . $matches[2])],
+					['label', 'name' => str_replace('#', '::', $this->labelPrefix . $matches[4])],
 					strlen($matches[0])
 				];
 			}

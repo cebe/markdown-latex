@@ -16,5 +16,8 @@ drei!
 
 par par
 
-Head with ref <a name="refname"></a>
-====================================
+Head with ref <a name="refname1"></a>
+=====================================
+
+Head with ref <span id="refname2"></span>
+=========================================

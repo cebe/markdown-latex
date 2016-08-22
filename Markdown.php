@@ -340,6 +340,9 @@ class Markdown extends \cebe\markdown\Parser
 	 */
 	protected function renderText($text)
 	{
-		return str_replace("  \n", "\\\\\n", $this->escapeLatex($text[1]));
+		$output = str_replace("  \n", "\\\\\n", $this->escapeLatex($text[1]));
+		// support non breaking spaces in LaTeX
+		$output = preg_replace("/\x{00a0}/u", '~', $output);
+		return $output;
 	}
 }

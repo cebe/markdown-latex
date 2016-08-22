@@ -1,0 +1,1 @@
+This line ends on an NBSP Unicode 00A0 :

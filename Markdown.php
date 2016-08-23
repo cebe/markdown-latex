@@ -136,7 +136,12 @@ class Markdown extends \cebe\markdown\Parser
 	protected function renderCode($block)
 	{
 		$language = isset($block['language']) ? "\\lstset{language={$block['language']}}" : '\lstset{language={}}';
-		return "$language\\begin{lstlisting}\n{$block['content']}\n\\end{lstlisting}\n";
+
+		$content = $block['content'];
+		// replace No-Break Space characters in code block, which do not render in LaTeX
+		$content = preg_replace("/[\x{00a0}\x{202f}]/u", ' ', $content);
+
+		return "$language\\begin{lstlisting}\n{$content}\n\\end{lstlisting}\n";
 	}
 
 	/**
@@ -268,10 +273,13 @@ class Markdown extends \cebe\markdown\Parser
 	 */
 	protected function renderInlineCode($block)
 	{
-		if (strpos($block[1], '|') !== false) {
-			return '\\lstinline`' . str_replace("\n", ' ', $block[1]) . '`'; // TODO make this more robust against code containing backticks
+		// replace No-Break Space characters in code block, which do not render in LaTeX
+		$content = preg_replace("/[\x{00a0}\x{202f}]/u", ' ', $block[1]);
+
+		if (strpos($content, '|') !== false) {
+			return '\\lstinline`' . str_replace("\n", ' ', $content) . '`'; // TODO make this more robust against code containing backticks
 		} else {
-			return '\\lstinline|' . str_replace("\n", ' ', $block[1]) . '|';
+			return '\\lstinline|' . str_replace("\n", ' ', $content) . '|';
 		}
 	}
 

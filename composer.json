@@ -20,7 +20,7 @@
 	"minimum-stability": "dev",
 	"require": {
 		"php": ">=5.4.0",
-		"cebe/markdown": "~1.0.0",
+		"cebe/markdown": "~1.1.1",
 		"mikevanriel/text-to-latex": "~1.0.0"
 	},
 	"require-dev": {

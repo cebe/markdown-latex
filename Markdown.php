@@ -204,7 +204,7 @@ class Markdown extends \cebe\markdown\Parser
 			}
 			return '\hyperref['.str_replace('#', '::', $url).']{' . $text . '}';
 		} else {
-			return $text . '\\footnote{' . (empty($block['title']) ? '' : $this->escapeLatex($block['title']) . ': ') . '\url{' . $this->escapeUrl($url) . '}}';
+			return $text . '\\footnote{' . (empty($block['title']) ? '' : $this->escapeLatex($block['title']) . ': ') . '\url{' . $this->escapeLatex($url) . '}}';
 		}
 	}
 
@@ -222,7 +222,7 @@ class Markdown extends \cebe\markdown\Parser
 		}
 
 		// TODO create figure with caption with title
-		$url = $this->escapeUrl($block['url']);
+		$url = $this->escapeLatex($block['url']);
 		return "\\noindent\\includegraphics[width=\\textwidth]{{$url}}";
 	}
 
@@ -256,7 +256,7 @@ class Markdown extends \cebe\markdown\Parser
 	 */
 	protected function renderEmail($block)
 	{
-		$email = $this->escapeUrl($block[1]);
+		$email = $this->escapeLatex($block[1]);
 		return "\\href{mailto:{$email}}{{$email}}";
 	}
 
@@ -265,7 +265,7 @@ class Markdown extends \cebe\markdown\Parser
 	 */
 	protected function renderUrl($block)
 	{
-		return '\url{' . $this->escapeUrl($block[1]) . '}';
+		return '\url{' . $this->escapeLatex($block[1]) . '}';
 	}
 
 	/**
@@ -323,14 +323,6 @@ class Markdown extends \cebe\markdown\Parser
 	private $_escaper;
 
 	/**
-	 * Escape special characters in URLs
-	 */
-	protected function escapeUrl($string)
-	{
-		return str_replace('%', '\\%', $this->escapeLatex($string));
-	}
-
-	/**
 	 * Escape special LaTeX characters
 	 */
 	protected function escapeLatex($string)
@@ -338,7 +330,9 @@ class Markdown extends \cebe\markdown\Parser
 		if ($this->_escaper === null) {
 			$this->_escaper = new TextToLatex();
 		}
-		return $this->_escaper->convert($string);
+		$output = $this->_escaper->convert($string);
+		$output = str_replace('%', '\\%', $output);
+		return $output;
 	}
 
 	/**

@@ -1,6 +1,6 @@
 {
 	"name": "cebe/markdown-latex",
-	"description": "A super fast highly extensible markdown parser for PHP that converts markdown files into latex",
+	"description": "A super fast, highly extensible markdown parser for PHP, that converts markdown files into latex",
 	"keywords": ["markdown", "gfm", "markdown-extra", "fast", "extensible", "latex"],
 	"homepage": "https://github.com/cebe/markdown-latex#readme",
 	"type": "library",

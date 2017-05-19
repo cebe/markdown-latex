@@ -222,7 +222,15 @@ class Markdown extends \cebe\markdown\Parser
 		}
 
 		// TODO create figure with caption with title
-		$url = $this->escapeUrl($block['url']);
+		$replaces = [
+			'%' => '\\%',
+			'{' => '\\%7B',
+			'}' => '\\%7D',
+			'\\' => '\\\\',
+			'#' => '\\#',
+			'$' => '\\%24',
+		];
+		$url = str_replace(array_keys($replaces), array_values($replaces), $block['url']);
 		return "\\noindent\\includegraphics[width=\\textwidth]{{$url}}";
 	}
 

@@ -102,7 +102,7 @@ class GithubMarkdown extends Markdown
 	 */
 	protected function renderAutoUrl($block)
 	{
-		return '\url{' . $this->escapeUrl($block[1]) . '}';
+		return '\url{' . $this->escapeLatex($block[1]) . '}';
 	}
 
 	/**

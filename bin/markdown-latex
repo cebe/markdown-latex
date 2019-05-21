@@ -20,6 +20,7 @@ foreach ($composerAutoload as $autoload) {
 // Send all errors to stderr
 ini_set('display_errors', 'stderr');
 
+$linkStyle = 'footnote';
 $flavor = 'cebe\\markdown\\latex\\Markdown';
 $flavors = [
 	'gfm' => ['cebe\\markdown\\latex\\GithubMarkdown', __DIR__ . '/../GithubMarkdown.php'],
@@ -45,6 +46,17 @@ foreach($argv as $k => $arg) {
 					}
 				} else {
 					error("Incomplete argument --flavor!", "usage");
+				}
+			break;
+			case '--link-style':
+				if (isset($arg[1])) {
+					if ($arg[1] === 'href' || $arg[1] === 'footnote') {
+						$linkStyle = $arg[1];
+					} else {
+						error("Unknown link style: " . $arg[1], "usage");
+					}
+				} else {
+					error("Incomplete argument --link-style!", "usage");
 				}
 			break;
 			case '--full':
@@ -79,6 +91,7 @@ if (empty($src)) {
 
 /** @var cebe\markdown\Parser $md */
 $md = new $flavor();
+$md->linkStyle = $linkStyle;
 $tex = $md->parse($markdown);
 
 if ($full) {
@@ -171,6 +184,11 @@ Usage:
 
               gfm - Github flavored markdown [2]
               extra - Markdown Extra [3]
+
+    --link-style  specifies how links are being rendered:
+
+              footnote (default) - render all links with a footnote, which contains the full URL of the link. This is good for printing the PDF.
+              href - render all links with a hyperref, similar to HTML, the link target is not visible in this case.
 
     --full    ouput a full TEX document with document class, begin and end document. If not given, only the parsed markdown will be output.
 

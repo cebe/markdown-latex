@@ -52,6 +52,17 @@ class Markdown extends \cebe\markdown\Parser
 	 */
 	public $labelPrefix = '';
 
+	const LINK_STYLE_FOOTNOTE = 'footnote';
+	const LINK_STYLE_HREF = 'href';
+
+	/**
+	 * @var string link style defines how links are rendered in LaTeX, there are two different options:
+	 *
+	 * - `footnote` (default) - render all links with a footnote, which contains the full URL of the link. This is good for printing the PDF.
+	 * - `href` - render all links with a hyperref, similar to HTML, the link target is not visible in this case.
+	 */
+	public $linkStyle = self::LINK_STYLE_FOOTNOTE;
+
 	/**
 	 * @var array these are "escapeable" characters. When using one of these prefixed with a
 	 * backslash, the character will be outputted without the backslash and is not interpreted
@@ -204,6 +215,9 @@ class Markdown extends \cebe\markdown\Parser
 			}
 			return '\hyperref['.str_replace('#', '::', $url).']{' . $text . '}';
 		} else {
+			if ($this->linkStyle === self::LINK_STYLE_HREF) {
+				return '\href{' . $this->escapeUrl($url) . '}{' . $text . '}';
+			}
 			return $text . '\\footnote{' . (empty($block['title']) ? '' : $this->escapeLatex($block['title']) . ': ') . '\url{' . $this->escapeUrl($url) . '}}';
 		}
 	}
